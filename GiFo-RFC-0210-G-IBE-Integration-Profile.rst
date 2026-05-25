@@ -182,6 +182,8 @@ Appendices
 - Appendix E — CyberArk + Conjur + Venafi Cookbook (Preliminary)
 - Appendix F — GAuth Open-Core SDK Reference Connector-Slot-Registry
   Foundation
+- Appendix G - Salesforce Platform Cookbook (Preliminary)
+- Appendix U — UiPath Orchestrator + Identity Server Cookbook (Preliminary)
 
 
 1. Scope
@@ -2609,6 +2611,73 @@ Implementers Should treat §13.A as the authoritative SDK contract;
 Appendix F exists as a forward-pointer and reservation marker for
 future SDK-side editorial expansion.
 
+
+## Appendix G — Salesforce Platform Cookbook (Preliminary)
+=============================================================================
+
+### G.1 Scope and Posture
+
+Salesforce Is, in CCPE-G terms, an **architecturally bidirectional** identity-bound surface: a given Salesforce Org Can simultaneously act as **upstream IdP** (Salesforce Identity issuing SAML 2.0 assertions or OIDC ID Tokens via a Connected App's "Authentication Method"; Experience Cloud as customer-facing IdP) and as **downstream Resource-AS** (the Salesforce Org Is the resource a cross-platform agent calls into; native Profiles + Permission Sets + Permission Set Groups + Sharing Rules + Object/Field-Level Security continue to run as the Phase-2 layer). This cookbook covers both bindings as two distinct sub-postures, **G-α** (upstream) and **G-β** (downstream); the G-β sub-posture Is the architecturally dominant one for the UiPath → Salesforce cross-platform pattern that motivates v0.8.
+
+**Identifier shape:** Salesforce User Id (15- or 18-character case-safe form); Salesforce Org Id (18-character); Connected App Consumer Key. **Credential shape:** bearer OAuth 2.0 access token (JWT-or-opaque per Org configuration); sender-constrained variants Are available at the wire level for selected programmes (Public Sector mTLS; Asset Token Service bound exchange tokens) but Are Not assumed by default. **Authority encoding:** Profiles + Permission Sets + Permission Set Groups + Sharing Rules + Object-/Field-Level Security + Connected App scope set; AppExchange-managed-package "namespace prefix" Is the natural sub-tenant axis. **Audit surface:** Real-Time Event Monitoring (Event Monitoring add-on or Shield) + Setup Audit Trail + Login History.
+
+### G.2 Three-Service Mapping
+
+| CCPE-G Service | Salesforce realisation |
+|---|---|
+| Directory | Salesforce User sObject + ConnectedApplication sObject + PermissionSetAssignment + Group / Role hierarchy. Per-User Permission Set Group expansion Is the effective entitlement set. |
+| Authority-Surface | Setup → Apps → App Manager (Connected App registration); Permission Set + Permission Set Group editor; Profile editor; Sharing Settings; SAML SSO Settings; Auth Providers; OAuth Custom Scopes (where enabled). |
+| Runtime-PEP | **G-α:** Salesforce SAML / OIDC issuer at sign-on; the layered Foundation-side wrapper Is the Identity-PEP translating Salesforce-asserted claims into RFC 0117 PERMIT / DENY / CONSTRAIN per RFC 0119 §§4 / 5. **G-β:** a PEP-Sidecar (Sidecar / Gateway pattern of RFC 0117 §10) deployed in front of REST / SOAP / Bulk / Composite API, or an Apex-fronted custom REST endpoint wrapping the resource; native Salesforce sharing + CRUD/FLS continues to evaluate as the Phase-2 layer. |
+
+### G.3 Boundary-Primitive Mapping
+
+| Primitive | Salesforce realisation |
+|---|---|
+| `identity_issuance` | **G-α:** SAML AuthnResponse emission or OIDC Authorization Code grant → the upstream-IdP bridge consumes the assertion per RFC 0119 §4 / §5. **G-β:** agent-identity (per-agent User sObject, typically Integration User license type, plus Connected App registration) provisioning via SOAP API `create` or Tooling API; per-agent Permission Set assignment emits a PermissionSetAssignment event. |
+| `identity_attribute_mutation` | Permission Set / Permission Set Group (un)assignment, Profile change, Sharing Rule edit. Audited via Setup Audit Trail; per-attribute decomposition supported in the Real-Time Event Monitoring `PermissionSetEventStore` and `PermissionSetAssignmentEventStore` channels. |
+| `identity_revocation` | Connected App OAuth-token revoke (`POST /services/oauth2/revoke`) + Refresh-Token bulk revoke; User deactivation (`PATCH sobjects/User/{id}` with `IsActive = false`); Permission Set unassignment; active-session purge via Setup → Session Management. Emergency revocation: "Block" Connected App at Org-policy level. |
+| `identity_introspection` | **G-α:** SAML assertion attribute set; OIDC `/services/oauth2/userinfo` + `id_token` claims. **G-β:** `GET sobjects/User/{id}` + PermissionSetAssignment query + EffectivePermission query. The `directory_etag` analogue Is `SystemModstamp` on User + per-assignment `SystemModstamp` (Permission Set / Sharing). |
+
+### G.4 Bridge Contract Mapping
+
+**G-α direction (Salesforce as upstream IdP, mandate generation).** Foundation-side bridge consumes a Salesforce-issued SAML assertion or OIDC ID Token per RFC 0119 §4 / §5: `principal_evidence.actor` ← OIDC `email` / SAML NameID; `subject` ← Connected App-issued OAuth client-id or per-agent User Id (where the Connected App acts as a delegated agent); `scope` ← intersection of (OAuth scope claim of the access token) ∩ (effective Permission Set Group expansion); `bridge_evidence.identity_id` ← Salesforce User Id; `bridge_evidence.directory_etag` ← User `SystemModstamp` ⊕ per-relevant-PermissionSetAssignment `SystemModstamp`. `issuer` URN Is derived per RFC 0119 §4.2.2 from the Salesforce Org's MyDomain hostname.
+
+**G-β direction (Salesforce as downstream Resource-AS, mandate consumption).** PEP-Sidecar in front of REST / SOAP / Bulk / Composite API verifies the inbound synthetic mandate (`proof.sig` against the bridge's published JWKS; `bridge_evidence.directory_etag` against an independent introspection at the upstream directory) and runs the RFC 0117 16-check pipeline **in parallel** with native Salesforce sharing + CRUD/FLS — **AND-conjunction** per §3.0. When the Sidecar permits the call and the downstream Salesforce action initiates a sub-action (Apex-invoked Named Credential outbound call; Composite tree to a second sObject; Flow callout), the Sidecar emits a narrowed `delegation_chain` extension per RFC 0115 §3.7 with `subject` ← original agent and `scope` narrowed to the sub-action's specific sObject + operation.
+
+**Trigger conditions** of §6.2 map to: (a) Salesforce-resident sub-agents (a per-Apex-job per-agent identity) calling further Salesforce or external resources; (b) the cross-platform action that defines the G-β use case (UiPath, Workato, MuleSoft, ServiceNow etc. calling into Salesforce); (c) commerce-class actions where the Salesforce sObject Is an Opportunity, Order, Invoice, or comparable commercial record (RFC 0170 §A applies); (d) downstream-consumer-requested envelopes via `Accept: application/vnd.gimel.gauth.poa+jwt`.
+
+### G.5 Vendor-Acknowledgment-Update
+
+Reserved for the next Dreamforce / TrailblazerDX publication cycle, in particular the Salesforce Agentforce identity-binding posture and any post-Agentforce-3 wire-level commitments (Asset Token Service, OAuth 2.1 alignment, OAuth Custom Scope GA), should public materials warrant.
+
+**Note:** Register against §13.A `identity_platform` with `platformId = "salesforce-org-<orgId-18>"` and `cookbookAppendix = "G"`. Bidirectional deployments Should register two `identity_platform` instances differentiated by `cookbookAppendix = "G-alpha"` (upstream-IdP role) and `cookbookAppendix = "G-beta"` (downstream-Resource-AS role); the dual-instance discipline mirrors the dual-trigger discipline of Appendix E. The G-β PEP-Sidecar Is the natural §13.A `identity_bridge`-adapter consumer at the Salesforce edge; deployments that cannot deploy a Sidecar Must downgrade to the Minimal profile for cross-platform inbound calls.
+
+
+
+
+## Appendix U — UiPath Orchestrator + Identity Server Cookbook (Preliminary)
+=============================================================================
+
+
+### U.1 Scope and Posture
+
+UiPath ships two RPA-adjacent identity surfaces that share a common Orchestrator-resident agent-identity model but differ in **where** authentication terminates:
+
+- **U-α — UiPath Automation Cloud.** UiPath Automation Cloud Is identity-federated to an enterprise IdP (Microsoft Entra ID, Okta, Google Workspace, Ping, generic SAML 2.0 / OIDC). UiPath Acts as **Relying Party**; the upstream IdP assertion Is the architecturally natural bridge input. Robot identities (Attended, Unattended, Test Automation) Are Cloud-managed Robot Accounts; per-Robot OAuth client credentials Are issued via the Cloud-side `identity_` API surface. Folder-and-Role-based RBAC encodes the agent's authority.
+- **U-β — UiPath Orchestrator on-premises with UiPath Identity Server.** UiPath Identity Server (an OpenIddict-derived OIDC OP) Acts as the IdP itself; Orchestrator Robot Account credentials Are issued via Identity Server's `/connect/token` endpoint. The bridge consumes Identity-Server-issued tokens directly as the upstream assertion; there Is no enterprise IdP in the assertion path unless Identity Server Is itself federation-chained.
+
+**Identifier shape:** UiPath Account Id + Tenant Id + User / Robot GUID (both variants); Folder Id (RBAC scope). **Credential shape:** bearer OAuth 2.0 access token (both variants); sender-constrained credentials (DPoP / mTLS) Are Not in scope at the GA wire-level posture observed through the v0.8 cut-off. **Authority encoding:** Folders + Roles + Permissions; Account-scoped vs. Folder-scoped role assignment. **Audit surface:** UiPath Audit Logs (both variants) + Insights (Cloud) + Identity Server audit log (on-prem).
+
+### U.2 Three-Service Mapping
+
+| CCPE-G Service | UiPath realisation |
+|---|---|
+| Directory | **U-α:** UiPath Automation Cloud Users + Robots tables (federated principal mirrored from upstream IdP) + Folder-Role assignments. **U-β:** UiPath Identity Server User + Robot Account tables + Orchestrator-side Folder-Role assignments. |
+| Authority-Surface | **U-α:** UiPath Automation Cloud Admin (`cloud.uipath.com/<account>/<tenant>/admin`) + Orchestrator OData API + Cloud `identity_` API. **U-β:** Identity Server Management API + Orchestrator OData API + Identity Server Admin Portal. |
+| Runtime-PEP | Orchestrator's per-OData-resource authorisation gate (both variants) Is the Phase-2 PEP. For cross-platform down
+
+
+---
 
 Disclaimer
 ==========

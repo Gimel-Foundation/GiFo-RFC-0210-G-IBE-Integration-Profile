@@ -11,7 +11,7 @@ GiFo-RFC 0210 — G-IBE Integration Profile (CCPE-G)
 :Obsoletes:       —
 :Category:        Standards Track
 :Date:            4 May 2026
-:Version:         0.8 (Working Draft — Under Vendor Review)
+:Version:         0.8.1 (Working Draft — Under Vendor Review)
 
 
 Abstract

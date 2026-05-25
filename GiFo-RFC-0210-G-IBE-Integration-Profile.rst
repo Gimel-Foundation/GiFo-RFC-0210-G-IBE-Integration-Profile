@@ -10,7 +10,7 @@ GiFo-RFC 0210 — G-IBE Integration Profile (CCPE-G)
 :Organization:    Gimel Foundation gGmbH i.G.
 :Obsoletes:       —
 :Category:        Standards Track
-:Date:            4 May 2026
+:Date:            25 May 2026
 :Version:         0.8.1 (Working Draft — Under Vendor Review)
 
 
@@ -44,7 +44,8 @@ e) the four governance-profile categories Minimal / Standard / Strict /
 f) the Preliminary Microsoft Entra Agent ID Cookbook (Appendix A) and
    the Preliminary Cookbooks for Okta + Auth0 (B), Ping + ForgeRock (C),
    SPIFFE/SPIRE-with-layered-principal-delegation (D), and CyberArk +
-   Venafi (E); and
+   Venafi (E), Salesforce Platform (G), and UiPath Orchestrator +
+   Identity Server (U); and
 g) the GAuth Open-Core Reference Connector Slot Registry of §13.A.
 
 **Central thesis:** A credential-bound identity is not the same as a
@@ -182,7 +183,7 @@ Appendices
 - Appendix E — CyberArk + Conjur + Venafi Cookbook (Preliminary)
 - Appendix F — GAuth Open-Core SDK Reference Connector-Slot-Registry
   Foundation
-- Appendix G - Salesforce Platform Cookbook (Preliminary)
+- Appendix G — Salesforce Platform Cookbook (Preliminary)
 - Appendix U — UiPath Orchestrator + Identity Server Cookbook (Preliminary)
 
 
@@ -215,7 +216,7 @@ e) Defines the audit-event schema (§10) by which an identity-bound
    consumers reconstruct mandate-equivalent semantics post-hoc.
 f) Defines the four governance-profile categories Minimal / Standard /
    Strict / Platform-Native and the conformance-feature matrix.
-g) Specifies the (Preliminary) Cookbooks of Appendices A–E.
+g) Specifies the (Preliminary) Cookbooks of Appendices A–E, G, and U.
 h) Specifies the GAuth Open-Core Reference Connector Slot Registry
    foundation (§13.A and Appendix F): the multi-instance
    ``identity_platform`` slot (Type-A) and the single

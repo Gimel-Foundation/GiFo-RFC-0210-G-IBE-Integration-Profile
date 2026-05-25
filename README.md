@@ -1,4 +1,4 @@
-# GiFo-RFC-0210 (V0.7)
+# GiFo-RFC-0210 (V0.8)
 
 G-IBE Integration Profile - Combined Credential- and Platform-bound Enforcement (CCPE-G)
 

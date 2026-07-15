@@ -8,9 +8,9 @@ GiFo-RFC 0210 — G-IBE Integration Profile (CCPE-G)
 :Authors:         G. Wehberg, C. Forlani and the Architecture Working
                   Group of Gimel Foundation
 :Organization:    Gimel Foundation gGmbH i.G.
-:Obsoletes:       —
+:Obsoletes:       0.8.1
 :Category:        Standards Track
-:Date:            25 May 2026
+:Date:            15 July 2026
 :Version:         0.8.2 (Working Draft — Under Vendor Review)
 
 
